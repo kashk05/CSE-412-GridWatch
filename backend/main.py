@@ -4,7 +4,7 @@ from sqlalchemy import text
 
 from backend.db.session import SessionLocal
 from backend.db import models
-from backend.api import reports, refdata
+from backend.api import reports, refdata, analytics
 
 
 app = FastAPI(
@@ -30,3 +30,4 @@ def health_check():
     
 app.include_router(refdata.router)
 app.include_router(reports.router)
+app.include_router(analytics.router)
