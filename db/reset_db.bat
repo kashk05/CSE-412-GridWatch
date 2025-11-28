@@ -5,7 +5,8 @@ echo.
 
 :: Set to base path
 :: Initialize.sql and nyc311_integrate.sql need path updates as well
-cd "C:\Desktop\Coding Projects\CSE-412-GridWatch"
+cd /d "%~dp0"
+cd ..
 
 psql -U postgres -f db\Initialize.sql
 

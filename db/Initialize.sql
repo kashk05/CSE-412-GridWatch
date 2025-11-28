@@ -3,7 +3,7 @@
 \timing on
 
 -- EDIT THIS PATH ONCE:
-\set BASE 'C:/Desktop/Coding Projects/CSE-412-GridWatch/db'
+\set BASE './db'
 \set DB gridwatch
 
 -- Always reset the DB cleanly
