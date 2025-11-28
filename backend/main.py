@@ -4,11 +4,12 @@ from sqlalchemy import text
 
 from backend.db.session import SessionLocal
 from backend.db import models
+from backend.api import reports, refdata
 
 
 app = FastAPI(
     title="CSE 412 GridWatch Reporting API",
-    version="0.1.0"
+    version="0.2.0"
 )
 
 @app.get("/health")
@@ -26,3 +27,6 @@ def health_check():
         return {"status": "ok"}
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Database connection failed") from exc
+    
+app.include_router(refdata.router)
+app.include_router(reports.router)

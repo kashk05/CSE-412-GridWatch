@@ -10,7 +10,7 @@ class Settings(BaseModel):
 @lru_cache()
 def get_settings() -> Settings:
     default_url = (
-        "postgresql+psycopg2://postgres:postgres@localhost:5432/Proj_Phase_2"
+        "postgresql+psycopg2://postgres:postgres@localhost:5432/gridwatch"
     )
     return Settings(
         database_url=os.getenv("DATABASE_URL", default_url)
