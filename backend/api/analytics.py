@@ -61,4 +61,4 @@ def avg_resolution_time(db: Session = Depends(get_db)):
     )
 
     result = db.execute(stmt).scalar()
-    return {"avg_resolution_days": float(result) if result else 0.0}
+    return {"avg_resolution_days": round(float(result),2) if result else 0.0}

@@ -68,6 +68,11 @@ class User(Base):
         back_populates="changed_by_user",
         foreign_keys="StatusUpdate.changed_by"
     )
+    assignments: Mapped[List["Assignment"]] = relationship(
+    "Assignment",
+    back_populates="assignee"
+    )
+
 
 
 class Department(Base):
@@ -98,6 +103,11 @@ class Department(Base):
         "ServiceArea",
         back_populates="department"
     )
+    assignments: Mapped[List["Assignment"]] = relationship(
+    "Assignment",
+    back_populates="department"
+    )
+
 
 
 class ServiceArea(Base):
@@ -286,6 +296,11 @@ class Report(Base):
         back_populates="report",
         cascade="all, delete-orphan"
     )
+    assignments: Mapped[List["Assignment"]] = relationship(
+    "Assignment",
+    back_populates="report"
+    )
+
 
 
 class StatusUpdate(Base):
@@ -370,7 +385,7 @@ class Assignment(Base):
 
     assignee_user_id: Mapped[Optional[int]] = mapped_column(
         BigInteger,
-        ForeignKey('"user".user_id', ondelete="SET NULL"),
+        ForeignKey('user.user_id', ondelete="SET NULL"),
         nullable=True,
     )
 
