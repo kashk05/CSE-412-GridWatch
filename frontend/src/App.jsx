@@ -1,0 +1,26 @@
+// src/App.jsx
+import React from "react";
+import { Routes, Route } from "react-router-dom";
+
+import Navbar from "./components/Navbar.jsx";
+
+import Home from "./pages/Home.jsx";
+import Reports from "./pages/Reports.jsx";
+import Departments from "./pages/Departments.jsx";
+import CreateReport from "./pages/CreateReport.jsx";
+import Analytics from "./pages/Analytics.jsx";
+
+export default function App() {
+  return (
+    <>
+      <Navbar />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/reports" element={<Reports />} />
+        <Route path="/reports/new" element={<CreateReport />} />
+        <Route path="/departments" element={<Departments />} />
+        <Route path="/analytics" element={<Analytics />} />
+      </Routes>
+    </>
+  );
+}
