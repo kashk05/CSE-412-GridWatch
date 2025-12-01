@@ -71,6 +71,11 @@ class User(Base):
         back_populates="changed_by_user",
         foreign_keys="StatusUpdate.changed_by"
     )
+    assignments: Mapped[List["Assignment"]] = relationship(
+    "Assignment",
+    back_populates="assignee"
+    )
+
 
 
 class Department(Base):
@@ -101,6 +106,11 @@ class Department(Base):
         "ServiceArea",
         back_populates="department"
     )
+    assignments: Mapped[List["Assignment"]] = relationship(
+    "Assignment",
+    back_populates="department"
+    )
+
 
 
 class ServiceArea(Base):
@@ -288,6 +298,11 @@ class Report(Base):
         back_populates="report",
         cascade="all, delete-orphan"
     )
+    assignments: Mapped[List["Assignment"]] = relationship(
+    "Assignment",
+    back_populates="report"
+    )
+
 
 
 class StatusUpdate(Base):
@@ -335,4 +350,63 @@ class StatusUpdate(Base):
         "User", 
         back_populates="status_updates", 
         foreign_keys=[changed_by]
+    )
+
+class Assignment(Base):
+    """
+    Maps to table: assignment
+
+    Columns:
+      - assignment_id (PK)
+      - report_id (FK → report.report_id)
+      - dept_id (FK → department.dept_id)
+      - assignee_user_id (FK → user.user_id)
+      - assigned_at (timestamp)
+      - accepted_at (timestamp)
+      - is_active (boolean)
+    """
+
+    __tablename__ = "assignment"
+
+    assignment_id: Mapped[int] = mapped_column(
+        BigInteger,
+        primary_key=True,
+    )
+
+    report_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("report.report_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    dept_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("department.dept_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    assignee_user_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger,
+        ForeignKey('user.user_id', ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    assigned_at: Mapped[datetime] = mapped_column(nullable=False)
+    accepted_at: Mapped[Optional[datetime]] = mapped_column()
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    #relationships
+    report: Mapped["Report"] = relationship(
+        "Report",
+        back_populates="assignments",
+    )
+
+    department: Mapped["Department"] = relationship(
+        "Department",
+        back_populates="assignments",
+    )
+
+    assignee: Mapped[Optional["User"]] = relationship(
+        "User",
+        back_populates="assignments",
     )
