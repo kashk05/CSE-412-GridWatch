@@ -10,7 +10,8 @@ from sqlalchemy import (
     ForeignKey,
     Numeric,
     String,
-    Text
+    Text,
+    func
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import JSONB
@@ -54,7 +55,9 @@ class User(Base):
     role: Mapped[str] = mapped_column(String, nullable=False, default="RESIDENT")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default="now()"
+        DateTime(timezone=True), 
+        nullable=False, 
+        default=func.now()
     )
 
     # relationships
@@ -118,7 +121,7 @@ class ServiceArea(Base):
       - area_id (PK)
       - name (unique)
       - geojson (JSONB, enforced as object)
-      - dept_id (FK to department.dept_id, unique)
+      - dept_id (FK to department.dept_id)
     """
     __tablename__ = "service_area"
     __table_args__ = (
@@ -134,8 +137,7 @@ class ServiceArea(Base):
     dept_id: Mapped[int] = mapped_column(
         BigInteger,
         ForeignKey("department.dept_id"),
-        nullable=False,
-        unique=True
+        nullable=False
     )
 
     # relationships
@@ -245,12 +247,12 @@ class Report(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default="now()"
+        default=func.now()
     )
     current_status: Mapped[str] = mapped_column(
         String,
         nullable=False,
-        default="IN_PROGRESS"
+        default="SUBMITTED"
     )
     created_by: Mapped[int] = mapped_column(
         BigInteger, 
@@ -336,7 +338,7 @@ class StatusUpdate(Base):
     changed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), 
         nullable=False,
-        default="now()"
+        default=func.now()
     )
 
     # relationships

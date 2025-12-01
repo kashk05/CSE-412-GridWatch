@@ -1,15 +1,27 @@
 # backend/main.py
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from sqlalchemy import text
+from fastapi.middleware.cors import CORSMiddleware  # 🔹 add this
 
 from backend.db.session import SessionLocal
-from backend.db import models
 from backend.api import reports, refdata, analytics
-
 
 app = FastAPI(
     title="CSE 412 GridWatch Reporting API",
-    version="0.2.0"
+    version="1.0.0"
+)
+
+# 🔹 CORS so Vite (5173) can call FastAPI (8000)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 @app.get("/health")
@@ -31,3 +43,23 @@ def health_check():
 app.include_router(refdata.router)
 app.include_router(reports.router)
 app.include_router(analytics.router)
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    if exc.status_code == 404:
+        return JSONResponse(
+            status_code=404,
+            content={"detail": "Resource not found"}
+        )
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail}
+    )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    # Central 422 handler for body/query/path validation issues
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors()}
+    )
