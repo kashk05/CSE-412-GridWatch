@@ -117,7 +117,7 @@ def create_report(
     db: Session,
     payload: schemas.ReportCreate
 ) -> schemas.ReportDetail:
-    """Create a new report and return full detail view."""
+    """Create a new report and return full detail view with initial status history."""
     report = Report(
         title=payload.title,
         description=payload.description,
@@ -127,13 +127,22 @@ def create_report(
         area_id=payload.area_id,
         category_id=payload.category_id,
         severity_id=payload.severity_id,
-        created_by=payload.created_by
-        # current_status uses DB default (e.g., IN_PROGRESS or SUBMITTED)
+        created_by=payload.created_by,
+        current_status="SUBMITTED"
     )
 
     db.add(report)
     db.flush()
     db.refresh(report)
+
+    initial_status = StatusUpdate(
+        report_id=report.report_id,
+        status="SUBMITTED",
+        note="Report submitted",
+        changed_by=payload.created_by
+    )
+    db.add(initial_status)
+    db.flush()
 
     stmt = (
         select(Report)
