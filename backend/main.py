@@ -5,24 +5,24 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from sqlalchemy import text
+from fastapi.middleware.cors import CORSMiddleware  # 🔹 add this
 
 from backend.db.session import SessionLocal
 from backend.api import reports, refdata
-
 
 app = FastAPI(
     title="CSE 412 GridWatch Reporting API",
     version="1.0.0"
 )
 
+# 🔹 CORS so Vite (5173) can call FastAPI (8000)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"]
+    allow_headers=["*"],
 )
-
 
 @app.get("/health")
 def health_check():
