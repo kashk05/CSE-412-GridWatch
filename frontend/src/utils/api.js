@@ -1,9 +1,8 @@
-// src/api.js
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+// src/utils/api.js
+const API_BASE = "http://127.0.0.1:8000";
 
-async function apiFetch(path, options = {}) {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+async function apiRequest(path, options = {}) {
+  const res = await fetch(`${API_BASE}${path}`, {
     headers: {
       "Content-Type": "application/json",
       ...(options.headers || {}),
@@ -12,56 +11,63 @@ async function apiFetch(path, options = {}) {
   });
 
   if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`API ${res.status}: ${text}`);
+    let detail = "";
+    try {
+      const data = await res.json();
+      detail = data.detail || JSON.stringify(data);
+    } catch {
+      // ignore
+    }
+    throw new Error(`API error ${res.status}: ${detail}`);
   }
 
   if (res.status === 204) return null;
   return res.json();
 }
 
-// --------- REPORTS ---------
+// ---------- REPORTS ----------
 
-// LIST (GET /reports/)
-export const getReports = (params = {}) => {
-  const query = new URLSearchParams(
-    Object.fromEntries(
-      Object.entries(params).filter(
-        ([, v]) => v !== undefined && v !== null && v !== ""
-      )
-    )
-  ).toString();
+export async function getReports(params = {}) {
+  const url = new URL(`${API_BASE}/reports/`);
 
-  const suffix = query ? `?${query}` : "";
-  // NOTE: trailing slash here
-  return apiFetch(`/reports/${suffix}`);
-};
+  if (params.search) url.searchParams.set("search", params.search);
+  if (params.area_id) url.searchParams.set("area_id", params.area_id);
+  if (params.category_id) url.searchParams.set("category_id", params.category_id);
+  if (params.status) url.searchParams.set("status", params.status);
 
-// DETAIL (GET /reports/{id})
-export const getReport = (id) => apiFetch(`/reports/${id}`);
+  const res = await fetch(url.toString());
+  if (!res.ok) {
+    throw new Error(`Failed to load reports: ${res.status}`);
+  }
+  return res.json();
+}
 
-// CREATE (POST /reports/)
-export const createReport = (payload) =>
-  apiFetch("/reports/", {
+export async function getReport(reportId) {
+  return apiRequest(`/reports/${reportId}`);
+}
+
+export async function createReport(payload) {
+  return apiRequest("/reports/", {
     method: "POST",
     body: JSON.stringify(payload),
   });
+}
 
-// UPDATE STATUS (PUT /reports/{id}/status)
-export const updateReportStatus = (id, payload) =>
-  apiFetch(`/reports/${id}/status`, {
+export async function updateReportStatus(reportId, payload) {
+  return apiRequest(`/reports/${reportId}/status`, {
     method: "PUT",
     body: JSON.stringify(payload),
   });
+}
 
-// DELETE (DELETE /reports/{id})
-export const deleteReport = (id) =>
-  apiFetch(`/reports/${id}`, { method: "DELETE" });
+export async function deleteReport(reportId) {
+  return apiRequest(`/reports/${reportId}`, {
+    method: "DELETE",
+  });
+}
 
-// --------- REF DATA ---------
-export const getServiceAreas = () => apiFetch("/service-areas");
-export const getCategories = () => apiFetch("/categories");
-export const getSeverities = () => apiFetch("/severities");
-export const getStatuses = () => apiFetch("/statuses");
+// ---------- REFDATA (for statuses on detail page) ----------
 
-export default apiFetch;
+export async function getStatuses() {
+  return apiRequest("/statuses");
+}
