@@ -3,7 +3,7 @@
 \timing on
 
 -- EDIT THIS PATH ONCE:
-\set BASE 'C:/Users/kashi/OneDrive/Documents/CSE 412 - Fall 25/Group Project'
+\set BASE './db'
 \set DB gridwatch
 
 -- Always reset the DB cleanly

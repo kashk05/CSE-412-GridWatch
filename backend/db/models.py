@@ -10,7 +10,8 @@ from sqlalchemy import (
     ForeignKey,
     Numeric,
     String,
-    Text
+    Text,
+    func
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import JSONB
@@ -54,7 +55,9 @@ class User(Base):
     role: Mapped[str] = mapped_column(String, nullable=False, default="RESIDENT")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default="now()"
+        DateTime(timezone=True), 
+        nullable=False, 
+        default=func.now()
     )
 
     # relationships
@@ -68,6 +71,11 @@ class User(Base):
         back_populates="changed_by_user",
         foreign_keys="StatusUpdate.changed_by"
     )
+    assignments: Mapped[List["Assignment"]] = relationship(
+    "Assignment",
+    back_populates="assignee"
+    )
+
 
 
 class Department(Base):
@@ -98,6 +106,11 @@ class Department(Base):
         "ServiceArea",
         back_populates="department"
     )
+    assignments: Mapped[List["Assignment"]] = relationship(
+    "Assignment",
+    back_populates="department"
+    )
+
 
 
 class ServiceArea(Base):
@@ -108,7 +121,7 @@ class ServiceArea(Base):
       - area_id (PK)
       - name (unique)
       - geojson (JSONB, enforced as object)
-      - dept_id (FK to department.dept_id, unique)
+      - dept_id (FK to department.dept_id)
     """
     __tablename__ = "service_area"
     __table_args__ = (
@@ -124,8 +137,7 @@ class ServiceArea(Base):
     dept_id: Mapped[int] = mapped_column(
         BigInteger,
         ForeignKey("department.dept_id"),
-        nullable=False,
-        unique=True
+        nullable=False
     )
 
     # relationships
@@ -235,12 +247,12 @@ class Report(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default="now()"
+        default=func.now()
     )
     current_status: Mapped[str] = mapped_column(
         String,
         nullable=False,
-        default="IN_PROGRESS"
+        default="SUBMITTED"
     )
     created_by: Mapped[int] = mapped_column(
         BigInteger, 
@@ -286,6 +298,11 @@ class Report(Base):
         back_populates="report",
         cascade="all, delete-orphan"
     )
+    assignments: Mapped[List["Assignment"]] = relationship(
+    "Assignment",
+    back_populates="report"
+    )
+
 
 
 class StatusUpdate(Base):
@@ -321,7 +338,7 @@ class StatusUpdate(Base):
     changed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), 
         nullable=False,
-        default="now()"
+        default=func.now()
     )
 
     # relationships
@@ -333,4 +350,63 @@ class StatusUpdate(Base):
         "User", 
         back_populates="status_updates", 
         foreign_keys=[changed_by]
+    )
+
+class Assignment(Base):
+    """
+    Maps to table: assignment
+
+    Columns:
+      - assignment_id (PK)
+      - report_id (FK → report.report_id)
+      - dept_id (FK → department.dept_id)
+      - assignee_user_id (FK → user.user_id)
+      - assigned_at (timestamp)
+      - accepted_at (timestamp)
+      - is_active (boolean)
+    """
+
+    __tablename__ = "assignment"
+
+    assignment_id: Mapped[int] = mapped_column(
+        BigInteger,
+        primary_key=True,
+    )
+
+    report_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("report.report_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    dept_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("department.dept_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    assignee_user_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger,
+        ForeignKey('user.user_id', ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    assigned_at: Mapped[datetime] = mapped_column(nullable=False)
+    accepted_at: Mapped[Optional[datetime]] = mapped_column()
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    #relationships
+    report: Mapped["Report"] = relationship(
+        "Report",
+        back_populates="assignments",
+    )
+
+    department: Mapped["Department"] = relationship(
+        "Department",
+        back_populates="assignments",
+    )
+
+    assignee: Mapped[Optional["User"]] = relationship(
+        "User",
+        back_populates="assignments",
     )

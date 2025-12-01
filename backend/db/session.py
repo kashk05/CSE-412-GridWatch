@@ -1,6 +1,7 @@
 # backend/db/session.py
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
+from typing import Generator
 
 from backend.core.config import settings
 
@@ -17,3 +18,10 @@ SessionLocal = sessionmaker(
     autocommit=False,
     expire_on_commit=False
 )
+
+def get_db() -> Generator[Session, None, None]:
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
