@@ -131,10 +131,11 @@ export default function Home() {
             <DepartmentsLoad reports={reports} />
           </div>
 
-          {/* Lightweight activity feed (still demo text, but NYC-ified) */}
-          <div className="lg:col-span-1 order-2 lg:order-4">
-            <ActivityFeed />
-          </div>
+{/* Lightweight activity feed (now derived from live reports) */}
+<div className="lg:col-span-1 order-2 lg:order-4">
+  <ActivityFeed reports={reports} />
+</div>
+
         </section>
       </div>
     </div>
@@ -473,38 +474,55 @@ function SeverityPill({ level }) {
 }
 
 function DepartmentsLoad({ reports }) {
-  // very rough synthetic "load" per area based on open reports
+  // derive per-area live load from real reports
   const areas = useMemo(() => {
-    const map = new Map();
+    const buckets = new Map();
+
     reports.forEach((r) => {
-      const key = r.area_name || "Unassigned area";
-      const sev = (r.severity_label || "").toUpperCase();
-      const weight =
-        sev.includes("HIGH") ? 3 : sev.includes("MEDIUM") ? 2 : 1;
-      if (!isOpenStatus(r.current_status)) return;
-      const entry = map.get(key) || { count: 0, weight: 0 };
-      entry.count += 1;
-      entry.weight += weight;
-      map.set(key, entry);
+      const name = r.area_name || r.service_area_name || "Unassigned";
+
+      if (!buckets.has(name)) {
+        buckets.set(name, {
+          name,
+          openScore: 0,    // severity-weighted score
+          openCount: 0,
+        });
+      }
+
+      const entry = buckets.get(name);
+
+      if (!isOpenStatus(r.current_status)) {
+        return;
+      }
+
+      const sev = String(r.severity_label || "").toUpperCase();
+      const weight = sev.includes("HIGH")
+        ? 3
+        : sev.includes("LOW")
+        ? 1
+        : 2; // MEDIUM / unknown
+
+      entry.openScore += weight;
+      entry.openCount += 1;
     });
 
-    return Array.from(map.entries()).map(([name, v]) => ({
-      name,
-      load: Math.min(100, v.weight * 10),
-      trend: "live",
-    }));
-  }, [reports]);
+    const rows = Array.from(buckets.values());
 
-  // fallback if backend empty
-  const data =
-    areas.length === 0
-      ? [
-          { name: "Manhattan Core", load: 35, trend: "demo" },
-          { name: "Brooklyn Grid", load: 22, trend: "demo" },
-          { name: "Queens Grid", load: 18, trend: "demo" },
-          { name: "Bronx & Staten", load: 12, trend: "demo" },
-        ]
-      : areas;
+    if (rows.length === 0) return [];
+
+    // scale so busiest area = 100, others relative
+    const maxScore = Math.max(...rows.map((r) => (r.openScore || 1)));
+
+    return rows
+      .map((r) => ({
+        ...r,
+        loadIndex: Math.round((r.openScore / maxScore) * 100),
+      }))
+      // busiest first
+      .sort((a, b) => b.loadIndex - a.loadIndex)
+      // show top 12 areas on the dashboard
+      .slice(0, 12);
+  }, [reports]);
 
   return (
     <div className="h-full rounded-3xl border border-slate-800 bg-slate-950/90 p-5 shadow-xl">
@@ -522,62 +540,103 @@ function DepartmentsLoad({ reports }) {
         </span>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2">
-        {data.map((d) => (
-          <div
-            key={d.name}
-            className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/80 p-3 text-xs"
-          >
-            <div className="flex items-center justify-between">
-              <p className="font-medium text-slate-100">{d.name}</p>
-              <span className="text-[0.65rem] text-emerald-300">
-                {d.trend}
-              </span>
-            </div>
-            <div className="mt-2 flex items-center gap-2">
-              <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-800">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-sky-400 via-teal-400 to-emerald-400"
-                  style={{ width: `${d.load}%` }}
-                />
+      {areas.length === 0 ? (
+        <p className="text-[0.75rem] text-slate-400">
+          No live reports yet. File some issues to see area load.
+        </p>
+      ) : (
+        <div className="grid gap-3 md:grid-cols-2">
+          {areas.map((area) => (
+            <div
+              key={area.name}
+              className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/80 p-3 text-xs"
+            >
+              <div className="flex items-center justify-between">
+                <p className="font-medium text-slate-100">{area.name}</p>
+                <span className="text-[0.65rem] text-emerald-300">
+                  live
+                </span>
               </div>
-              <span className="w-10 text-right text-[0.7rem] text-slate-100">
-                {d.load}
-              </span>
+
+              <div className="mt-2 flex items-center gap-2">
+                <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-800">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-sky-400 via-teal-400 to-emerald-400"
+                    style={{ width: `${area.loadIndex}%` }}
+                  />
+                </div>
+                <span className="w-10 text-right text-[0.7rem] text-slate-100">
+                  {area.loadIndex}
+                </span>
+              </div>
+
+              <p className="mt-1 text-[0.65rem] text-slate-400">
+                Derived from {area.openCount} open report
+                {area.openCount === 1 ? "" : "s"} in this area.
+              </p>
             </div>
-            <p className="mt-1 text-[0.65rem] text-slate-400">
-              Derived from open reports in this area.
-            </p>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-function ActivityFeed() {
-  const items = [
-    {
-      label: "New report filed",
-      detail: "Resident flagged a noise complaint in Midtown.",
-      time: "5 min ago",
-    },
-    {
-      label: "Status updated",
-      detail: "Pothole in Brooklyn moved to In Progress.",
-      time: "18 min ago",
-    },
-    {
-      label: "SLA warning",
-      detail: "Trash overflow in Queens approaching SLA.",
-      time: "32 min ago",
-    },
-    {
-      label: "Resolution",
-      detail: "Streetlight outage in the Bronx resolved.",
-      time: "57 min ago",
-    },
-  ];
+function ActivityFeed({ reports }) {
+  const events = React.useMemo(() => {
+    if (!Array.isArray(reports) || reports.length === 0) return [];
+
+    const now = Date.now();
+    const ONE_HOUR_MS = 60 * 60 * 1000;
+
+    // newest reports first
+    const sorted = [...reports].sort((a, b) => {
+      const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return tb - ta;
+    });
+
+    // prefer events from the last 60 minutes; if none, fall back to newest overall
+    const recent = sorted.filter((r) => {
+      if (!r.created_at) return false;
+      const t = new Date(r.created_at).getTime();
+      return now - t <= ONE_HOUR_MS;
+    });
+
+    const base = (recent.length ? recent : sorted).slice(0, 9);
+
+    return base.map((r) => {
+      let label;
+      if (isBreaching(r)) {
+        label = "SLA warning";
+      } else if (!isOpenStatus(r.current_status)) {
+        label = "Resolution";
+      } else {
+        label = "New report filed";
+      }
+
+      const area = r.area_name || "this area";
+      const sev = (r.severity_label || "").toLowerCase();
+
+      let detail;
+      if (label === "SLA warning") {
+        detail = `${r.title} in ${area} is breaching its SLA.`;
+      } else if (label === "Resolution") {
+        detail = `${r.title} in ${area} has been resolved.`;
+      } else {
+        detail = `${r.title} reported in ${area}${
+          sev ? ` (${sev} severity)` : ""
+        }.`;
+      }
+
+      return {
+        id: r.report_id,
+        label,
+        detail,
+        time: timeAgo(r.created_at),
+      };
+    });
+  }, [reports]);
 
   return (
     <div className="h-full rounded-3xl border border-slate-800 bg-slate-950/90 p-5 shadow-xl">
@@ -590,18 +649,24 @@ function ActivityFeed() {
         </span>
       </div>
 
-      <ol className="relative border-l border-slate-800/80 pl-3 text-xs space-y-3">
-        {items.map((item, idx) => (
-          <li key={idx} className="relative pl-2">
-            <span className="absolute -left-[9px] mt-1 h-2.5 w-2.5 rounded-full bg-gradient-to-r from-sky-400 to-emerald-400 shadow-md" />
-            <p className="font-medium text-slate-100">{item.label}</p>
-            <p className="text-[0.7rem] text-slate-400">{item.detail}</p>
-            <p className="mt-0.5 text-[0.65rem] text-slate-500">
-              {item.time}
-            </p>
-          </li>
-        ))}
-      </ol>
+      {events.length === 0 ? (
+        <p className="text-[0.75rem] text-slate-400">
+          No recent activity in the last hour.
+        </p>
+      ) : (
+        <ol className="relative border-l border-slate-800/80 pl-3 text-xs space-y-3">
+          {events.map((item) => (
+            <li key={item.id} className="relative pl-2">
+              <span className="absolute -left-[9px] mt-1 h-2.5 w-2.5 rounded-full bg-gradient-to-r from-sky-400 to-emerald-400 shadow-md" />
+              <p className="font-medium text-slate-100">{item.label}</p>
+              <p className="text-[0.7rem] text-slate-400">{item.detail}</p>
+              <p className="mt-0.5 text-[0.65rem] text-slate-500">
+                {item.time}
+              </p>
+            </li>
+          ))}
+        </ol>
+      )}
     </div>
   );
 }
