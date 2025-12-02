@@ -1,6 +1,6 @@
 // src/pages/Reports.jsx
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { getReports } from "../utils/api.js";
 
 const PER_PAGE = 25;
@@ -58,20 +58,36 @@ export default function Reports() {
 
   const [page, setPage] = useState(1);
 
-  // search box state
-  const [searchInput, setSearchInput] = useState("");
-  const [searchTerm, setSearchTerm] = useState(""); // actual applied query
+  // 🔍 search state
+  const [searchText, setSearchText] = useState("");
+  const [searching, setSearching] = useState(false);
 
   const navigate = useNavigate();
 
-  // ---- load from API once ----
+  // ---- core loader that can take backend query params ----
+  async function loadReports(params = {}) {
+    try {
+      setLoading(true);
+      const data = await getReports(params); // backend /reports with optional ?search=
+      setReports(Array.isArray(data) ? data : []);
+      setError("");
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load reports from the API.");
+      setReports([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ---- initial load ----
   useEffect(() => {
     let cancelled = false;
 
-    async function load() {
+    (async () => {
       try {
         setLoading(true);
-        const data = await getReports(); // backend /reports
+        const data = await getReports();
         if (!cancelled) {
           setReports(Array.isArray(data) ? data : []);
           setError("");
@@ -85,34 +101,19 @@ export default function Reports() {
       } finally {
         if (!cancelled) setLoading(false);
       }
-    }
+    })();
 
-    load();
     return () => {
       cancelled = true;
     };
   }, []);
 
-  // ---- when search input becomes empty, clear searchTerm so all reports show ----
-  useEffect(() => {
-    if (searchInput.trim() === "") {
-      setSearchTerm("");
-      setPage(1);
-    }
-  }, [searchInput]);
-
-  // ---- apply filters + search in-memory ----
+  // ---- apply filters in-memory ----
   const filtered = useMemo(() => {
     const now = Date.now();
-    const q = searchTerm.trim().toLowerCase();
 
     return reports.filter((r) => {
       const created = r.created_at ? new Date(r.created_at).getTime() : null;
-
-      // search by title
-      if (q && !(r.title || "").toLowerCase().includes(q)) {
-        return false;
-      }
 
       if (filters.last24h && created !== null) {
         const diff = now - created;
@@ -133,12 +134,12 @@ export default function Reports() {
 
       return true;
     });
-  }, [reports, filters, searchTerm]);
+  }, [reports, filters]);
 
-  // reset page when filters or applied searchTerm change
+  // reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [filters, searchTerm]);
+  }, [filters]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
   const currentPageReports = filtered.slice(
@@ -174,6 +175,7 @@ export default function Reports() {
     setFilters((prev) => ({
       ...prev,
       breachingOnly: !prev.breachingOnly,
+      // breaching implies open-ish, but we won't force it here
     }));
   };
 
@@ -184,16 +186,15 @@ export default function Reports() {
     }));
   };
 
-  // ---- search handlers ----
-  const handleSearchClick = () => {
-    setSearchTerm(searchInput.trim());
-  };
+  // ---- search handler → calls backend with ?search= ----
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    const q = searchText.trim();
 
-  const handleSearchKeyDown = (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      setSearchTerm(searchInput.trim());
-    }
+    setSearching(true);
+    await loadReports(q ? { search: q } : {});
+    setSearching(false);
+    setPage(1);
   };
 
   // ---- CSV export of *filtered* reports ----
@@ -242,60 +243,49 @@ export default function Reports() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50">
       <div className="relative mx-auto max-w-6xl px-4 pb-10 pt-6 md:px-6 lg:px-8">
-        {/* Header text already comes from layout nav above */}
+        {/* Header */}
+        <section className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-slate-400">
+              Issue Directory
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold text-slate-50">
+              All Reports
+            </h1>
+            <p className="mt-2 max-w-xl text-sm text-slate-400">
+              Browse and filter every issue logged in your grid. Use severity,
+              status, and search to triage what matters first.
+            </p>
+          </div>
 
-        <section className="mb-6">
-          <p className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-slate-400">
-            Issue Directory
-          </p>
-          <div className="mt-2 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h1 className="text-3xl font-semibold text-slate-50">
-                All Reports
-              </h1>
-              <p className="mt-2 max-w-xl text-sm text-slate-400">
-                Browse and filter every issue logged in your grid. Use severity,
-                status, and search to triage what matters first.
-              </p>
-            </div>
+          {/* search + new */}
+          <div className="flex flex-wrap items-center gap-3">
+            <form
+              onSubmit={handleSearch}
+              className="flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1.5 text-xs"
+            >
+              <input
+                type="text"
+                className="bg-transparent text-slate-100 placeholder:text-slate-500 outline-none w-40 md:w-56"
+                placeholder="Search by title…"
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+              />
+              <button
+                type="submit"
+                className="rounded-full bg-slate-800 px-3 py-1 text-[0.7rem] text-slate-100"
+                disabled={searching}
+              >
+                {searching ? "Searching…" : "Search"}
+              </button>
+            </form>
 
-            {/* Search bar + New Report */}
-            <div className="flex items-center gap-3">
-              <div className="flex items-center rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1.5 text-sm">
-                <input
-                  type="text"
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  onKeyDown={handleSearchKeyDown}
-                  placeholder="Search by Title..."
-                  className="w-52 bg-transparent text-xs text-slate-100 placeholder:text-slate-500 outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={handleSearchClick}
-                  className="ml-2 rounded-full bg-slate-100 px-3 py-1 text-[0.7rem] font-medium text-slate-900 hover:bg-slate-200"
-                >
-                  Search
-                </button>
-              </div>
-<button
-  type="button"
-  onClick={() => navigate("/reports/new")}
-  className="
-    flex items-center justify-center
-    h-[40px]            /* EXACT height match to search bar */
-    px-5
-    rounded-full
-    bg-gradient-to-r from-sky-400 via-teal-400 to-emerald-400
-    text-sm font-semibold text-slate-950
-    shadow-lg shadow-sky-500/30
-    hover:opacity-95
-  "
->
-  + New Report
-</button>
-
-            </div>
+            <Link
+              to="/reports/new"
+              className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-sky-400 via-teal-400 to-emerald-400 px-4 py-2 text-xs font-semibold text-slate-950 shadow-lg shadow-sky-500/30 hover:opacity-95"
+            >
+              + New Report
+            </Link>
           </div>
         </section>
 
@@ -307,7 +297,8 @@ export default function Reports() {
               active={
                 filters.severity === "all" &&
                 filters.status === "all" &&
-                !filters.breachingOnly
+                !filters.breachingOnly &&
+                !filters.last24h
               }
               onClick={handleAllGrids}
             />
@@ -353,7 +344,6 @@ export default function Reports() {
         <section className="mb-3 flex flex-col gap-2 text-[0.7rem] text-slate-400 md:flex-row md:items-center md:justify-between">
           <span>
             Showing {filtered.length} of {reports.length} reports
-            {searchTerm && ` (search: “${searchTerm}”)`}
           </span>
           <div className="flex items-center gap-2">
             <button
@@ -367,7 +357,9 @@ export default function Reports() {
               Page {page} / {totalPages}
             </span>
             <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              onClick={() =>
+                setPage((p) => Math.min(totalPages, p + 1))
+              }
               disabled={page === totalPages}
               className="rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 disabled:opacity-40"
             >
@@ -398,7 +390,8 @@ export default function Reports() {
             {currentPageReports.map((r) => (
               <article
                 key={r.report_id}
-                className="group rounded-2xl border border-slate-800/80 bg-slate-900/70 px-4 py-3 text-xs md:text-[0.8rem] hover:border-sky-400/60 hover:bg-slate-900/90 transition"
+                className="group rounded-2xl border border-slate-800/80 bg-slate-900/70 px-4 py-3 text-xs md:text-[0.8rem] hover:border-sky-400/60 hover:bg-slate-900/90 transition cursor-pointer"
+                onClick={() => navigate(`/reports/${r.report_id}`)}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
