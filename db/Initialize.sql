@@ -30,6 +30,7 @@ SELECT format('CREATE DATABASE %I', :'DB')\gexec
 
 \echo --- InsertFurther.sql ---
 \i InsertFurther.sql
+\i InsertRecent.sql
 
 \echo --- Verification.sql ---
 \i Verification.sql
