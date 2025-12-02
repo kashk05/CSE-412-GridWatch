@@ -7,7 +7,7 @@ BEGIN;
 \if :{?CSV}
   \echo Using CSV from -v: :CSV
 \else
-  \set CSV 'C:/Users/kashi/OneDrive/Documents/CSE 412 - Fall 25/Group Project/nyc311_sample.csv'
+  \set CSV './data/nyc311_sample.csv'
   \echo Using CSV from script: :CSV
 \endif
 
