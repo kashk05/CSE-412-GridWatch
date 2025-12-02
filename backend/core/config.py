@@ -12,7 +12,9 @@ class Settings(BaseModel):
 def get_settings() -> Settings:
     # Use your actual local creds: user 'kash', db 'gridwatch'
     # No password here -> psycopg2 will use .pgpass just like DataGrip
-    default_url = "postgresql+psycopg2://kash@localhost:5432/gridwatch"
+    # default_url = "postgresql+psycopg2://kash@localhost:5432/gridwatch"
+
+    default_url = "postgresql+psycopg2://gridwatch:gridwatch@localhost:5432/gridwatch"
 
     return Settings(
         database_url=os.getenv("DATABASE_URL", default_url)

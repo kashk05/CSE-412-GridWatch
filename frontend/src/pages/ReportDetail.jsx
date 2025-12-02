@@ -140,7 +140,7 @@ export default function ReportDetail() {
             onClick={handleDelete}
             className="rounded-full border border-rose-500/70 bg-rose-500/10 px-4 py-2 text-xs font-medium text-rose-100 hover:bg-rose-500/20"
           >
-            Delete report
+            Delete Report
           </button>
         </div>
 
